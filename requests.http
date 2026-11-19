@@ -1,0 +1,245 @@
+### =====================================================
+### Rota Segura API - requisições para teste
+### Funciona no IntelliJ (HTTP Client) e no VS Code (extensão REST Client)
+###
+### Os IDs (1, 2, 4...) consideram o banco recém-criado com os
+### dados iniciais. Se o banco já tiver outros registros, ajuste os IDs.
+### =====================================================
+
+@baseUrl = http://localhost:8080
+# @baseUrl = https://SEU-APP.onrender.com
+
+
+### =====================================================
+### LEITURAS (regra de negócio principal)
+### SNS-001 tem limite de 180 cm -> ATENCAO a partir de 144 cm
+### =====================================================
+
+### 1) Leitura que gera alerta de PERIGO (185 >= 180)
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "SNS-001",
+  "nivelCm": 185.0,
+  "chuvaMm": 42.5
+}
+
+### 2) Leitura que gera alerta de ATENCAO (150 >= 144, que é 80% de 180)
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "SNS-001",
+  "nivelCm": 150.0,
+  "chuvaMm": 20.0
+}
+
+### 3) Leitura normal, NÃO gera alerta (90 < 144)
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "SNS-001",
+  "nivelCm": 90.0,
+  "chuvaMm": 3.0
+}
+
+### 4) Sensor inexistente -> 404
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "SNS-999",
+  "nivelCm": 100.0,
+  "chuvaMm": 10.0
+}
+
+### 5) Dados inválidos -> 400
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "",
+  "nivelCm": -5
+}
+
+
+### =====================================================
+### ABRIGOS
+### =====================================================
+
+### Listar todos os abrigos
+GET {{baseUrl}}/abrigos
+
+### Buscar abrigo por id
+GET {{baseUrl}}/abrigos/1
+
+### Abrigos ativos com vaga no bairro (o ginásio lotado não aparece)
+GET {{baseUrl}}/abrigos/bairro/Jardim%20Pantanal
+
+### Cadastrar abrigo -> 201
+POST {{baseUrl}}/abrigos
+Content-Type: application/json
+
+{
+  "nome": "Paróquia São José",
+  "endereco": "Rua da Matriz, 300",
+  "bairro": "Jardim Helena",
+  "capacidade": 100,
+  "vagasDisponiveis": 100,
+  "latitude": -23.4861,
+  "longitude": -46.4221,
+  "ativo": true
+}
+
+### Atualizar abrigo (ex: diminuiu o número de vagas)
+PUT {{baseUrl}}/abrigos/5
+Content-Type: application/json
+
+{
+  "nome": "Paróquia São José",
+  "endereco": "Rua da Matriz, 300",
+  "bairro": "Jardim Helena",
+  "capacidade": 100,
+  "vagasDisponiveis": 35,
+  "latitude": -23.4861,
+  "longitude": -46.4221,
+  "ativo": true
+}
+
+### Regra de negócio: vagas maiores que a capacidade -> 400
+POST {{baseUrl}}/abrigos
+Content-Type: application/json
+
+{
+  "nome": "Abrigo Teste",
+  "endereco": "Rua Teste, 1",
+  "bairro": "Vila Itaim",
+  "capacidade": 10,
+  "vagasDisponiveis": 50,
+  "latitude": -23.49,
+  "longitude": -46.40
+}
+
+### Excluir abrigo -> 204
+DELETE {{baseUrl}}/abrigos/5
+
+### Abrigo inexistente -> 404
+GET {{baseUrl}}/abrigos/9999
+
+
+### =====================================================
+### SENSORES
+### =====================================================
+
+### Listar todos os sensores
+GET {{baseUrl}}/sensores
+
+### Buscar sensor por id
+GET {{baseUrl}}/sensores/1
+
+### Histórico de leituras do sensor
+GET {{baseUrl}}/sensores/1/leituras
+
+### Cadastrar sensor -> 201
+POST {{baseUrl}}/sensores
+Content-Type: application/json
+
+{
+  "codigo": "SNS-004",
+  "localizacao": "Córrego Três Pontes - foz no Tietê, Rua do Lago",
+  "bairro": "Jardim Pantanal",
+  "limiteCm": 160.0,
+  "ativo": true
+}
+
+### Código repetido -> 400
+POST {{baseUrl}}/sensores
+Content-Type: application/json
+
+{
+  "codigo": "SNS-001",
+  "localizacao": "Teste",
+  "bairro": "Jardim Pantanal",
+  "limiteCm": 100.0
+}
+
+### Atualizar sensor (desativando o SNS-004)
+PUT {{baseUrl}}/sensores/4
+Content-Type: application/json
+
+{
+  "codigo": "SNS-004",
+  "localizacao": "Córrego Três Pontes - foz no Tietê, Rua do Lago",
+  "bairro": "Jardim Pantanal",
+  "limiteCm": 160.0,
+  "ativo": false
+}
+
+### Leitura de sensor inativo -> 400
+POST {{baseUrl}}/leituras
+Content-Type: application/json
+
+{
+  "codigoSensor": "SNS-004",
+  "nivelCm": 100.0,
+  "chuvaMm": 5.0
+}
+
+### Excluir sensor sem leituras -> 204
+DELETE {{baseUrl}}/sensores/4
+
+### Excluir sensor com leituras -> 400 (deve ser desativado)
+DELETE {{baseUrl}}/sensores/1
+
+
+### =====================================================
+### ALERTAS
+### =====================================================
+
+### Listar todos os alertas
+GET {{baseUrl}}/alertas
+
+### Listar alertas ativos
+GET {{baseUrl}}/alertas/ativos
+
+### Buscar alerta por id
+GET {{baseUrl}}/alertas/1
+
+### Criar alerta manual (agente da Defesa Civil) -> 201
+POST {{baseUrl}}/alertas
+Content-Type: application/json
+
+{
+  "sensorId": 2,
+  "nivel": "PERIGO",
+  "mensagem": "Defesa Civil: Rua do Porto alagada. Moradores devem ir ao Salão Comunitário Jardim Helena.",
+  "bairro": "Jardim Helena"
+}
+
+### Criar alerta manual sem sensor -> 201
+POST {{baseUrl}}/alertas
+Content-Type: application/json
+
+{
+  "nivel": "ATENCAO",
+  "mensagem": "Previsão de chuva forte nas próximas 3 horas.",
+  "bairro": "Vila Itaim"
+}
+
+### Nível inválido -> 400
+POST {{baseUrl}}/alertas
+Content-Type: application/json
+
+{
+  "nivel": "MEDIO",
+  "mensagem": "Teste",
+  "bairro": "Vila Itaim"
+}
+
+### Encerrar alerta (ativo = false)
+PUT {{baseUrl}}/alertas/1/encerrar
+
+### Excluir alerta -> 204
+DELETE {{baseUrl}}/alertas/2
